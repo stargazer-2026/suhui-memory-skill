@@ -1,8 +1,13 @@
-# 溯洄 · 记忆蒸馏平台
+# 溯洄 · 记忆蒸馏平台（suhui — memory distillation skill）
 
 > 把一段聊天记录蒸馏成一个"记忆还活着的世界"。
 > 不是聊天机器人（那是"你问它答"），是"你回去"——打开它，像走进一间屋子，屋里有人正在生活。
 > **v3 起是多人物平台**：蒸馏 N 个人物，注册表管理，记忆剧场让她们相遇。
+>
+> **Turn your chat history into an AI memory skill** — a memory distillation skill that
+> remembers everything, keeps living, and lets you go back to any stage of your story.
+> Import WeChat / iMessage / Telegram / SMS / photos → Persona + Memories + World Tree.
+> MIT · local-first · open source.
 
 支持对象不限前任：朋友、家人、历史人物、自己——同一套管线，对象不同。
 
@@ -47,12 +52,19 @@
 多人物与剧场全程自然语言（SKILL.md 意图映射）：
 - "我想跟 X 说话" → 加载 X；"让 X 和 Y 聊聊" → 记忆剧场；"回到我们刚认识的时候" → 时段切换；"她怎么看我" → 用户侧画像
 
+### 开放 Skills 生态（Vercel skills CLI）
+
+```bash
+npx skills add stargazer-2026/suhui
+```
+
+> 兼容 76+ agents（OpenCode / Claude Code / Codex / Cursor 等）。`npx skills use stargazer-2026/suhui | <agent>` 可不安装直接使用。
+
 ### DeepSeek Harness（DSH）支持
 
 兼容 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)：
 
-- 方式一：克隆/解压到 `~/.dsh/skills/suhui/`（dsh 的 skill-filesystem 直接解析 SKILL.md frontmatter）
-- 方式二：`dsh plugin add github:stargazer-2026/suhui`
+- 安装：克隆/解压到 `~/.dsh/skills/suhui/`（dsh 的 skill-filesystem 直接解析 SKILL.md frontmatter；本仓库为纯 SKILL.md 形态，无插件市场元数据，不走 `dsh plugin add`）
 
 ### 脚本路径（可选，需 API 密钥）
 
