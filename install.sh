@@ -192,4 +192,7 @@ fi
 echo ""
 ok "安装完成。祝你们重逢愉快。"
 echo "  · 蒸馏工具链: scripts/ 目录（parse → segment → distill → build）"
+echo "  · 多人物平台:   python3 scripts/registry.py init && register <人物包> [--relation 陌生|熟人|旧怨]"
+echo "  · 增量升级:     python3 scripts/upgrade.py <人物包>/merged.json --stats <蒸馏目录>/stats.json"
+echo "  · 记忆剧场:     python3 scripts/theater.py script <A> <B>（虚构隔离剧本）"
 echo "  · 设置备份/迁移: python3 scripts/config.py export-backup <文件>"

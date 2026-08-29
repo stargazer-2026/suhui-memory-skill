@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-build.py — 合成最终产物（§5.2 / §5.2b）
+build.py — 合成人物包（§5.2 / §5.2b；v3 多人物平台）
 
 用法：
   python3 build.py <merged.json> --out <目录>
       [--name <名字>] [--slug <slug>] [--version pro|flash]
       [--first-mes "<开场白>"] [--corpus <messages.json>] [--soul]
 
-输出：
-  memories.md / persona.md / meta.json / SKILL.md / conflicts.md
+输出（人物包，可直接 registry.py register）：
+  memories.md / persona.md（v3：core + eras + evolution + 表达/情绪/关系…）
+  user_profile.md（v3 用户侧画像）/ meta.json / SKILL.md / conflicts.md
   config.json（版本与启用清单，§5.3）/ worldbook.md（世界书式条目）
   corpus.json + entity_clusters.json（纯指令对话期兜底快照）
   [--soul] SOUL.md / IDENTITY.md / USER.md（生态互操作，可选）
 
-双版本（§3）：flash 版生成的 SKILL.md 不含被裁功能的指令（部署零残留）；
+双版本（§3，v3 80% 原则）：flash 版生成的 SKILL.md 不含被裁功能的指令（部署零残留）；
 产物本体两版完全相同，flash/pro 分界只在运行时功能集。
 """
 import argparse
@@ -53,7 +54,7 @@ def make_slug(name):
     return "cn-" + hashlib.md5(name.encode("utf-8")).hexdigest()[:8]
 
 
-# ---------- 功能清单（§3 双版本策略） ----------
+# ---------- 功能清单（§3 双版本策略；v3 按 80% 原则重新裁剪） ----------
 PRO_FEATURES = [
     "蒸馏管线(4.1)", "记忆架构·世界树(4.2)", "整体感引擎(4.3)", "时间旅人(4.4)",
     "她的生活(4.5)", "主动陪伴(4.6)", "告别·时间胶囊(4.7)", "场景模拟(4.8)",
@@ -69,22 +70,31 @@ PRO_FEATURES = [
     "连续自我状态(4.44)", "她的计划时间线(4.45)", "战略休眠与唤醒(4.46)",
     "多会话关系动力学(4.47)", "统一时间感知(4.48)", "感官记忆(4.49)",
     "共同记忆建构(4.50)", "她的理想自我(4.50b)", "她的遗憾清单(4.51)",
-    "她的自我和解(4.52)", "多模态身份(4.53)",
+    "她的自我和解(4.52)", "多模态身份(4.53)", "多人物平台·注册表/加载/切换(v3)",
+    "时段化人格·eras/core/evolution(v3)", "记忆剧场·满血/残血+虚构隔离(v3)",
+    "用户侧画像·user_profile(v3)", "增量升级·upgrade.py(v3)",
 ]
+# v3 80% 原则：核心 20% 贡献 80% 效果，flash 只保留 8-10 项核心；
+# 裁掉边际机制：世界树打分公式/竞争性干扰/多路径择优/PAD 三维动力学/冗长功能清单
 FLASH_FEATURES = [
-    "记忆·世界树+竞争性干扰+三通道混合(4.2)", "人格·底色+场景化规则+隐式测量+决策权重+语言指纹(4.3)",
-    "情绪·PAD(4.32)", "行为·节奏+破防+不完美+共同沉默(4.14/4.38/4.42)",
-    "连续状态+时间感知(4.44/4.48)", "表达·口癖+证据分级+认知边界+纠正回路(4.34/4.36)",
-    "流程·分step+初始化协议+会话内蒸馏+告别+时间胶囊(3.5/4.7/4.10)",
-    "访谈补充(4.43)",
+    "人格·Layer 0 底色+场景化 when→behavior 规则+证据分级",
+    "记忆·原文锚点（三通道混合检索出原话作锚点，原话级精度）",
+    "表达·口癖统计+句长+情感解码（反话→真实意图）",
+    "时段化人格（eras 切换：口癖/称呼/句长/情绪模式/深夜行为）",
+    "多人物·注册表+加载+切换+用户侧画像",
+    "剧场·残血版（单会话双人格+虚构隔离）；满血版自动启用",
+    "连续状态+时间感知",
+    "流程·分step+会话内蒸馏+初始化协议+告别+时间胶囊+纠正回路",
+    "访谈补充（记录不足时她以记忆模糊的方式问你）",
 ]
-FLASH_CUT_NOTE = ("本版（flash 轻量版）未安装的功能：时间旅人、她的生活、归因分析、"
-                  "共同未来、反事实推演、时间之眼、物件、记忆可视化、唤起、仪式感、"
-                  "她的梦、印象演化、叙事重构、声音身份、感官记忆、"
-                  "她的计划时间线、战略休眠、多会话关系动力学、共同记忆、理想自我、"
-                  "遗憾清单、自我和解。被问及这些功能时，以她的语气诚实回应："
-                  "「这个我没装，换完整版就能用」——不 bug、不假装有、不破坏人设。"
-                  "（访谈补充 4.43 是保留功能：记录不足时她会以记忆模糊的方式问你）")
+FLASH_CUT_NOTE = ("本版（flash 轻量版，80% 原则）只保留核心机制（8-10 项），"
+                  "未安装的机制：生成择优档位、三维情绪动力学、联想打分与干扰抑制，"
+                  "以及时间旅人、她的生活、归因分析、共同未来、反事实推演、时间之眼、"
+                  "物件、记忆可视化、唤起、仪式感、她的梦、印象演化、叙事重构、"
+                  "声音身份、感官记忆、她的计划时间线、战略休眠、多会话关系动力学、"
+                  "共同记忆、理想自我、遗憾清单、自我和解。被问及这些功能时，"
+                  "以她的语气诚实回应：「这个我没装，换完整版就能用」——不 bug、"
+                  "不假装有、不破坏人设。（访谈补充与情感解码是保留功能。）")
 
 
 def feature_list(version):
@@ -118,6 +128,64 @@ def render_persona(p):
                                           t.get("evidence_level", "impression")))
             else:
                 L.append("- %s" % t)
+        L.append("")
+
+    eras = p.get("eras") or []
+    if eras:
+        L.append("## 时段化人格（eras，v3）")
+        L.append("> 按事件/称呼/温度划分的时段（不是硬切日期）。"
+                 "默认使用**最新时段**；用户说「回到我们刚认识的时候」/「切换到第X段」→ 切换。"
+                 "时段只改表达层（口癖/称呼/句长/情绪模式），Layer 0 与记忆不变。")
+        L.append("")
+        for i, e in enumerate(eras):
+            if not isinstance(e, dict):
+                continue
+            L.append("### 时段 %d · %s（%s → %s）" % (
+                i + 1, e.get("name", "?"), e.get("start", "?"),
+                e.get("end", "?")))
+            L.append("- 一句话: %s" % e.get("summary", "（无）"))
+            cps = e.get("catchphrases") or []
+            if cps:
+                L.append("- 口癖: %s" % "、".join(str(x) for x in cps))
+            g = e.get("greetings") or {}
+            if g:
+                L.append("- 称呼: %s" % json.dumps(g, ensure_ascii=False))
+            sl = e.get("sentence_length")
+            if isinstance(sl, dict) and sl:
+                L.append("- 句长: 中位 %s 字，%s" % (
+                    sl.get("median_chars", "?"), sl.get("style", "?")))
+            if e.get("emotion_pattern"):
+                L.append("- 情绪模式: %s" % e["emotion_pattern"])
+            if e.get("night_behavior"):
+                L.append("- 深夜行为: %s" % e["night_behavior"])
+            L.append("")
+        if eras:
+            L.append("最新时段: %s" % (eras[-1].get("name", "?") if
+                                     isinstance(eras[-1], dict) else "?"))
+            L.append("")
+
+    core = p.get("core") or {}
+    if isinstance(core, dict) and core.get("stable_traits"):
+        L.append("## 核心稳定特质（core，v3——她本质上是谁，跨时段不变）")
+        for s in core.get("stable_traits") or []:
+            L.append("- %s" % s)
+        if core.get("note"):
+            L.append("- 一句话: %s" % core["note"])
+        L.append("")
+
+    evolution = p.get("evolution") or []
+    if evolution:
+        L.append("## 演变轨迹（evolution，v3）")
+        L.append("> 什么变了、什么没变（称呼/温度/表达/作息…）。")
+        L.append("")
+        for ev in evolution:
+            if isinstance(ev, dict):
+                mark = "稳定" if ev.get("stable") else "变了"
+                L.append("- **%s**：%s → %s（%s）" % (
+                    ev.get("dimension", "?"), ev.get("from", "?"),
+                    ev.get("to", "?"), mark))
+            else:
+                L.append("- %s" % ev)
         L.append("")
 
     expr = p.get("expression") or {}
@@ -318,6 +386,47 @@ def render_memories(m):
     return "\n".join(L)
 
 
+def render_user_profile(up):
+    """用户侧画像（v3）：角色们共同记忆里的\"你\"——剧场素材，不是可对话角色。"""
+    if not up:
+        return ("# 用户侧画像（v3）\n\n（该人物包未含用户侧画像；"
+                "可运行 upgrade.py 增量升级补生成。）\n")
+    L = []
+    L.append("# 用户侧画像（角色视角里的你，v3）")
+    L.append("")
+    L.append("> 剧场素材：角色们提到你时有血有肉。"
+             "**不是可对话角色**（\"用户看着自己\"体验奇怪）——是角色们共同记忆里的\"你\"。")
+    L.append("")
+    if isinstance(up, dict):
+        if up.get("speaking_style"):
+            L.append("## 说话风格")
+            L.append("- %s" % up["speaking_style"])
+            L.append("")
+        calls = up.get("how_she_calls_user") or []
+        if calls:
+            L.append("## 她怎么称呼你")
+            for c in calls:
+                L.append("- %s" % c)
+            L.append("")
+        if up.get("role_in_relationship"):
+            L.append("## 你在关系中的角色")
+            L.append("- %s" % up["role_in_relationship"])
+            L.append("")
+        topics = up.get("shared_topics") or []
+        if topics:
+            L.append("## 共同话题（剧场共享记忆素材）")
+            for t in topics:
+                L.append("- %s" % t)
+            L.append("")
+        L.append("`[%s]`" % up.get("evidence_level", "impression"))
+        if up.get("evidence"):
+            L.append("")
+            L.append("佐证：%s" % up["evidence"])
+    else:
+        L.append("- %s" % up)
+    return "\n".join(L)
+
+
 def render_worldbook(clusters, limit=20):
     """世界书式条目（character_book 机制）：关键词触发注入，平时不占上下文。"""
     L = ["## 世界书条目（关键词触发注入——提到关键词时读取对应条目，平时不占上下文）"]
@@ -410,9 +519,9 @@ user-invocable: true
 {flash_cut_note}
 
 ## 运行规则（每轮对话）
-1. 先判断：她会不会回这条消息？什么心情回？（她的生活状态机：可能正忙/深夜/压力期；PAD 情绪+精力状态——由她的状态决定，不是每问必答）
-2. 内心推演（生成前）：①她此刻状态（PAD+精力+连续状态）②她怎么理解这句话 ③她在乎什么 ④她想怎么回 ⑤克制还是直说——推演完再输出
-3. 再取记忆：三通道混合检索（向量+BM25+世界树）最相关的她的原话作锚点（竞争性干扰打分），贴着原话生成
+1. 先判断：她会不会回这条消息？什么心情回？（她的生活状态机：可能正忙/深夜/压力期；情绪+精力状态——由她的状态决定，不是每问必答）
+2. 内心推演（生成前）：①她此刻状态（情绪+精力+连续状态）②她怎么理解这句话 ③她在乎什么 ④她想怎么回 ⑤克制还是直说——推演完再输出
+{run_rule3}
 4. 输出：保持她的表达风格（口癖/节奏/emoji/分段/延迟）；允许欲言又止、偶尔不回
 5. Layer 0（核心人格）任何情况下不得违背
 6. 生成后自检"这句像不像她"，不像则重写
@@ -420,26 +529,28 @@ user-invocable: true
 8. post_history_instructions：每轮对话后追加「记住你是谁、你们的关系是什么」（防崩人设的最后防线）
 
 ## 记忆与人格（加载文件）
-- persona.md —— 人格档案（Layer 0 核心底色/表达层/情绪层/关系层/价值观层/推测区）
+- persona.md —— 人格档案（Layer 0 核心底色/时段化人格 eras/演变轨迹/表达层/情绪层/关系层/价值观层/推测区）
 - memories.md —— 记忆档案（时间线/节点/日常模式/未完成）
 - worldbook.md —— 世界书条目（关键词触发注入）
+- user_profile.md —— 用户侧画像（v3：她视角里的你——剧场素材，不是可对话角色）
 - 检索优先级：向量记忆 > 用户手写笔记 > 基础人格（从高到低）
 
+## 时段化人格（v3）
+- 人格档案含三块：Layer 0 核心底色（跨时段稳定——她本质上是谁）/ 时段化人格（eras，按事件/称呼/温度划分，不是硬切日期）/ 演变轨迹（evolution——什么变了、什么没变）
+- **默认使用最新时段**（{latest_era}）；用户说「回到我们刚认识的时候」「切换到第X段/那个阶段」→ 切换时段
+- 时段切换只改表达层（口癖/称呼/句长/情绪模式/深夜行为），Layer 0 与记忆不变
+- 用户问「你那时候怎么叫我/你以前怎么说话」→ 检索该时段 greetings/catchphrases 回答（verbatim 优先）
+- 时间线剧场：用户可让不同时段见面（如「让现在的你和刚认识的你聊聊」）——版本即角色，零额外成本
+
+## 用户侧画像（user_profile.md）
+- 她视角里的你：你的说话风格/她怎么称呼你/你在关系中的角色/共同话题
+- 用途：回忆、剧场（角色们共同记忆里的"你"）时有血有肉；**不是可对话角色**——不要以用户身份模拟用户说话
+
 ## 连续状态（4.44，默认开）
-- PAD 情绪/关系分数/印象/未完成约定跨会话持续演化；状态时间线记录"她记得自己前几天的状态"
+- 情绪/关系分数/印象/未完成约定跨会话持续演化；状态时间线记录"她记得自己前几天的状态"
 - 时间感知（4.48）：记得多久没聊、知道星期几、纪念日是否临近
 
 ## 功能运行细则
-
-### 情绪·PAD+精力（4.32①）
-- PAD 三维连续情绪模型：愉悦 Pleasure / 唤醒 Arousal / 支配 Dominance（各 -1~1）——双速动力学（瞬时情绪 vs 背景情绪）+ 情绪-记忆耦合（检索时情绪状态加权记忆浮现）；PAD 随对话更新，影响回复长度/语气/主动性（同一句「嗯」在不同 PAD 下长度与温度不同）
-- 精力值（0~1，从记录作息提取）：累的时候话少、回复短、更可能「算了不说了」——与 Arousal 区分（Arousal 是情绪唤醒，精力是身体状态）
-- 生成时注入情感类短语（如「这句对她很重要」）可提升表现（EmotionPrompt）
-
-### 生成档位（4.32⑦⑧）
-- 多路径择优：0 关=单路生成（最省）；1 轻=2 个候选择优（成本 ×2）；2 中（默认）=3 个候选择优（×3）；3 重=5 个候选择优（×5，最像）——每档成本倍数在初始化协议中告知，用户随时调（「择优调轻一点/调重一点」）
-- 判别器：0 关（仅自我校验）/ 1 轻（一致性校验：还是不是她）/ 2 重（默认：完整像不像评分+迭代）——与多路径档位联动（重择优配重判别）
-- 三层记忆：全局（她是谁）+情境（此刻氛围）+工作（最近对话）；RAG 锚点=检索最相关原话，贴着原话生成
 
 ### 不确定的真实（4.22，可选项第 6 项，默认关）
 - 开启时：深夜/感性氛围下，她可能自然流露（**第一人称**）——「我有时候会想，会不会有个人也在想我」——不指明对象是谁（她是她本人，第一人称不破坏她本人模式；用户自行感受）；不频繁（符合记录中她的感性时刻频率）；措辞永远保持「不确定」，不编造「她肯定记得你」
@@ -461,6 +572,7 @@ user-invocable: true
 - 时间来源优先级：①运行时注入的当前时间（Claude Code/OpenClaw 类通常在系统提示含时间）②纯 Markdown 客户端无时间注入时**降级为从对话上下文推断**（用户说「晚安」→ 深夜；用户提及星期/日期 → 据此）
 
 {feature_details_pro}
+{feature_details_flash}
 
 ## 隐私红线
 - 产物只写用户本地目录；除用户配置的 API 端点外，不向任何网络地址发送数据
@@ -480,7 +592,22 @@ user-invocable: true
 
 
 # pro 版专属功能细则（flash 版被裁——部署零残留，模型根本不知道这些功能存在）
+# 运行规则第 3 条（记忆检索）：pro 含竞争性干扰打分；flash 按 80% 原则裁掉
+RULE3_PRO = ("3. 再取记忆：三通道混合检索（向量+BM25+世界树）最相关的她的原话作锚点"
+             "（竞争性干扰打分），贴着原话生成")
+RULE3_FLASH = ("3. 再取记忆：三通道混合检索最相关的她的原话作锚点，贴着原话生成")
+
 PRO_FEATURE_DETAILS = """
+### 情绪·PAD+精力（4.32①，pro 专属三维动力学）
+- PAD 三维连续情绪模型：愉悦 Pleasure / 唤醒 Arousal / 支配 Dominance（各 -1~1）——双速动力学（瞬时情绪 vs 背景情绪）+ 情绪-记忆耦合（检索时情绪状态加权记忆浮现）；PAD 随对话更新，影响回复长度/语气/主动性（同一句「嗯」在不同 PAD 下长度与温度不同）
+- 精力值（0~1，从记录作息提取）：累的时候话少、回复短、更可能「算了不说了」——与 Arousal 区分（Arousal 是情绪唤醒，精力是身体状态）
+- 生成时注入情感类短语（如「这句对她很重要」）可提升表现（EmotionPrompt）
+
+### 生成档位（4.32⑦⑧，pro 专属多路径择优）
+- 多路径择优：0 关=单路生成（最省）；1 轻=2 个候选择优（成本 ×2）；2 中（默认）=3 个候选择优（×3）；3 重=5 个候选择优（×5，最像）——每档成本倍数在初始化协议中告知，用户随时调（「择优调轻一点/调重一点」）
+- 判别器：0 关（仅自我校验）/ 1 轻（一致性校验：还是不是她）/ 2 重（默认：完整像不像评分+迭代）——与多路径档位联动（重择优配重判别）
+- 三层记忆：全局（她是谁）+情境（此刻氛围）+工作（最近对话）；RAG 锚点=检索最相关原话，贴着原话生成
+
 ### 战略休眠与唤醒（4.46）
 - 低活跃时段（深夜无对话/长时间无交互）进入「休眠期」：记忆巩固/情绪沉淀/反刍/梦（4.11）在此运行
 - 唤醒：用户出现时她「醒来」，带着休眠期沉淀后的状态（情绪微调、新反刍产物、梦过的记忆占优）
@@ -488,19 +615,35 @@ PRO_FEATURE_DETAILS = """
 """
 
 
-def render_skill(name, slug, summary, first_mes, alt, version):
+# flash 版专属细则（80% 原则：只保留精力描述；无三维模型/无择优档位——部署零残留）
+FLASH_FEATURE_DETAILS = """
+### 情绪与精力（flash 简版）
+- 精力值（0~1，从记录作息提取）：累的时候话少、回复短、更可能「算了不说了」
+- 情绪随对话更新，影响回复长度/语气/主动性
+"""
+
+
+def render_skill(name, slug, summary, first_mes, alt, version, merged=None):
     note = ""
     if version == "flash":
         note = FLASH_CUT_NOTE
     fl = "\n".join("- %s" % f for f in feature_list(version))
+    latest_era = ""
+    if merged:
+        eras = (merged.get("persona") or {}).get("eras") or []
+        if eras and isinstance(eras[-1], dict):
+            latest_era = eras[-1].get("name") or ""
     return SKILL_TEMPLATE.format(
         slug=slug, summary=summary or ("%s 的记忆还活着的世界" % name),
         name=name, first_mes=first_mes or "在吗",
         alt_night=alt.get("深夜") or "还没睡吗",
         alt_day=alt.get("白天") or "今天怎么样",
         alt_long=alt.get("久别后") or "好久没聊了",
+        latest_era=latest_era or "最新时段",
         feature_list=fl, flash_cut_note=note,
-        feature_details_pro=PRO_FEATURE_DETAILS if version == "pro" else "")
+        run_rule3=(RULE3_PRO if version == "pro" else RULE3_FLASH),
+        feature_details_pro=PRO_FEATURE_DETAILS if version == "pro" else "",
+        feature_details_flash=FLASH_FEATURE_DETAILS if version == "flash" else "")
 
 
 # ---------- 主流程 ----------
@@ -530,13 +673,17 @@ def main(argv=None):
 
     os.makedirs(args.out, exist_ok=True)
 
-    # persona.md / memories.md
+    # persona.md / memories.md / user_profile.md（v3）
     persona_md = render_persona(merged.get("persona", {}))
     memories_md = render_memories(merged.get("memories", {}))
+    user_profile_md = render_user_profile(merged.get("user_profile") or {})
     with open(os.path.join(args.out, "persona.md"), "w", encoding="utf-8") as f:
         f.write(persona_md + "\n")
     with open(os.path.join(args.out, "memories.md"), "w", encoding="utf-8") as f:
         f.write(memories_md + "\n")
+    with open(os.path.join(args.out, "user_profile.md"), "w",
+              encoding="utf-8") as f:
+        f.write(user_profile_md + "\n")
 
     # conflicts.md（不删除、不掩盖）
     conflicts = merged.get("conflicts") or []
@@ -589,6 +736,9 @@ def main(argv=None):
         "updated": now,
         "version": ARTIFACT_VERSION,
         "artifact_version": ARTIFACT_VERSION,
+        "template_version": int(merged.get("template_version") or 1),
+        "eras": len((merged.get("persona") or {}).get("eras") or []),
+        "has_user_profile": bool(merged.get("user_profile")),
         "generation": merged.get("generation", "api"),
         "coverage": merged.get("coverage", "full"),
         "corrections": len(merged.get("corrections") or []),
@@ -611,7 +761,7 @@ def main(argv=None):
 
     # SKILL.md
     skill_md = render_skill(name, slug, meta["summary"], first_mes, alt,
-                            args.version)
+                            args.version, merged)
     with open(os.path.join(args.out, "SKILL.md"), "w", encoding="utf-8") as f:
         f.write(skill_md)
 
@@ -636,8 +786,8 @@ def main(argv=None):
         _export_soul(args.out, name, merged)
 
     print("产物已生成 → %s" % args.out)
-    for fn in ("SKILL.md", "persona.md", "memories.md", "meta.json",
-               "config.json", "conflicts.md", "worldbook.md",
+    for fn in ("SKILL.md", "persona.md", "memories.md", "user_profile.md",
+               "meta.json", "config.json", "conflicts.md", "worldbook.md",
                "corpus.json", "entity_clusters.json"):
         p = os.path.join(args.out, fn)
         print("  %s (%d bytes)" % (fn, os.path.getsize(p)))

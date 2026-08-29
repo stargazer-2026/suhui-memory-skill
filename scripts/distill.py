@@ -174,6 +174,73 @@ def format_segment_text(messages):
     return "\n".join(lines)
 
 
+def _loose_epoch(ts):
+    """宽松时间解析：ISO / %Y-%m-%d / %Y-%m / %Y；失败返回 None。"""
+    if not ts:
+        return None
+    s = str(ts).strip()
+    try:
+        return datetime.datetime.fromisoformat(s).timestamp()
+    except (ValueError, TypeError):
+        pass
+    for slen, fmt in ((10, "%Y-%m-%d"), (7, "%Y-%m"), (4, "%Y")):
+        try:
+            return datetime.datetime.strptime(s[:slen], fmt).timestamp()
+        except ValueError:
+            continue
+    return None
+
+
+def _top_bigrams(texts, topn=8):
+    """B 侧消息高频 2-gram（artifact 证据：分时段口癖统计辅助，v3）。"""
+    cnt = Counter()
+    for txt in texts:
+        t = (txt or "").strip()
+        for i in range(len(t) - 1):
+            g = t[i:i + 2]
+            if g.strip() and not all(c in STOPWORDS for c in g):
+                cnt[g] += 1
+    return [{"phrase": w, "count": c} for w, c in cnt.most_common(topn)]
+
+
+def per_segment_stats(segments, topn=8):
+    """各段 B 侧高频词（时段划分 artifact 证据，merge 输入，v3）。"""
+    rows = []
+    for seg in segments:
+        b_texts = [m.get("text") for m in seg["messages"]
+                   if m.get("sender") == "B" and m.get("text")]
+        rows.append({"segment_id": seg["id"], "start": seg.get("start"),
+                     "end": seg.get("end"), "messages_B": len(b_texts),
+                     "top_phrases_B": _top_bigrams(b_texts, topn)})
+    return rows
+
+
+def per_era_stats(corpus, timeline, topn=8):
+    """按 timeline 阶段统计 B 侧高频词（升级/补全场景，v3）。"""
+    if not corpus or not timeline:
+        return []
+    rows = []
+    for s in timeline:
+        if not isinstance(s, dict):
+            continue
+        start, end = _loose_epoch(s.get("start")), _loose_epoch(s.get("end"))
+        b_texts = []
+        for m in corpus:
+            t = _loose_epoch(m.get("ts"))
+            if t is None or m.get("sender") != "B":
+                continue
+            if start is not None and t < start:
+                continue
+            if end is not None and t >= end:
+                continue
+            if m.get("text"):
+                b_texts.append(m["text"])
+        rows.append({"stage": s.get("stage") or "?", "start": s.get("start"),
+                     "end": s.get("end"), "messages_B": len(b_texts),
+                     "top_phrases_B": _top_bigrams(b_texts, topn)})
+    return rows
+
+
 def stats_summary(stats):
     """统计摘要 → 紧凑文本（蒸馏模板输入）。"""
     if not stats:
@@ -396,8 +463,45 @@ def offline_distill(segments, stats, name=""):
         ],
         "unfinished": [],
     }
+
+    # v3 增量层（离线启发式；API 蒸馏由 merge.md 生成，此处保证离线管线也有 v3 结构）
+    eras = []
+    for i, s in enumerate(timeline):
+        if not isinstance(s, dict):
+            continue
+        eras.append({
+            "name": s.get("stage") or "时段%d" % (i + 1),
+            "start": s.get("start") or "不确定",
+            "end": s.get("end") or "不确定",
+            "summary": "（离线：%s，温度 %s）" % (s.get("stage", "?"),
+                                              s.get("temperature", "?")),
+            "catchphrases": [c.get("phrase") for c in
+                             (expression.get("catchphrases") or [])[:3]],
+            "greetings": {"对用户的称呼": "（未提取，待 API 蒸馏）",
+                          "自称": "（未提取）"},
+            "sentence_length": {"median_chars": med_len, "style": "（未提取）"},
+            "emotion_pattern": "（离线未提取）",
+            "night_behavior": "深夜消息占比 %s" % night if night else "（无统计）",
+        })
+    evolution = [{"dimension": "温度", "from": "初识", "to": "末期",
+                  "stable": False}] if len(timeline) > 1 else []
+    user_profile = {
+        "speaking_style": "（离线骨架未提取，待 API 蒸馏）",
+        "how_she_calls_user": ["（未提取，待 API 蒸馏）"],
+        "role_in_relationship": "（离线骨架未提取）",
+        "shared_topics": [],
+        "evidence": "无",
+        "evidence_level": "impression",
+    }
+    persona["eras"] = eras
+    persona["core"] = {"stable_traits": [t.get("trait") for t in
+                                         persona.get("core_traits") or []
+                                         if isinstance(t, dict)],
+                       "note": "（离线：沿用 core_traits，待 API 蒸馏提炼）"}
+    persona["evolution"] = evolution
     return {"persona": persona, "memories": memories,
             "entity_clusters": clusters, "conflicts": [],
+            "user_profile": user_profile,
             "summary": "（离线骨架）%s 的统计画像——低质量占位，正式蒸馏请配置 LLM_API_KEY" % (name or "她"),
             "first_mes": first_mes[0] if first_mes else "在吗"}
 
@@ -649,6 +753,7 @@ def main(argv=None):
         merged = offline_distill(segments, stats, args.name)
         merged.update({
             "version": 1,
+            "template_version": 3,
             "name": args.name or "",
             "generation": "offline-heuristic",
             "coverage": "full" if len(segments) == 1 else "segmented",
@@ -672,12 +777,15 @@ def main(argv=None):
             ENTITY_CLUSTERS=json.dumps(payload["entity_clusters"],
                                        ensure_ascii=False, indent=2),
             CONFLICTS=json.dumps(payload["conflicts"], ensure_ascii=False, indent=2),
-            STATS=payload["stats"], HER_NAME=payload["HER_NAME"])
+            STATS=payload["stats"], HER_NAME=payload["HER_NAME"],
+            PER_SEGMENT_STATS=json.dumps(
+                per_segment_stats(segments), ensure_ascii=False, indent=2))
         print("合并蒸馏中（merge.md）...")
         merged = with_retry(call_json, base, key, model,
                             [{"role": "user", "content": prompt}])
         merged.update({
             "version": 1,
+            "template_version": 3,
             "name": args.name or merged.get("name", ""),
             "generation": "api",
             "coverage": "full" if len(segments) == 1 else "segmented",

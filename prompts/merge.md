@@ -29,6 +29,11 @@
 {{STATS}}
 ```
 
+### 分时段统计（artifact 证据——各段 B 侧高频词，时段划分辅助，v3）
+```
+{{PER_SEGMENT_STATS}}
+```
+
 ## 输出要求
 
 只输出一个 JSON 对象（不要输出任何其他文字），这是最终产物骨架（build.py 的输入），结构如下：
@@ -38,7 +43,18 @@
   "summary": "一句话：她是谁（SKILL.md 的 description 用，≤40字）",
   "persona": {
     "core_traits": [
-      {"trait": "可驱动每一句的元规则（3-5条，Layer 0）", "evidence_level": "verbatim|artifact|impression"}
+      {"trait": "可驱动每一句的元规则（3-5条，Layer 0，跨时段稳定）", "evidence_level": "verbatim|artifact|impression"}
+    ],
+    "eras": [
+      {"name": "时段名（按事件/称呼/温度划分，不是硬切日期）", "start": "起", "end": "止",
+       "summary": "这段的她一句话", "catchphrases": ["该时段口癖"],
+       "greetings": {"对用户的称呼": "…", "自称": "…"},
+       "sentence_length": {"median_chars": 数值, "style": "长句多/短句多/口语碎句"},
+       "emotion_pattern": "该时段情绪基调与表达方式", "night_behavior": "该时段深夜行为"}
+    ],
+    "core": {"stable_traits": ["跨时段稳定特质（与 core_traits 互相印证）"], "note": "她本质上是谁"},
+    "evolution": [
+      {"dimension": "称呼|温度|表达|作息|主动性|…", "from": "早期状态", "to": "后期状态", "stable": false}
     ],
     "expression": {
       "catchphrases": [{"phrase": "口癖", "freq": 数值, "when": "场景", "examples": ["[原文]"],
@@ -97,7 +113,15 @@
   "conflicts": [
     {"issue": "无法裁决的矛盾", "versions": ["可能版本"], "note": "写入最终 conflicts.md，不删除不掩盖"}
   ],
-  "corrections": []
+  "corrections": [],
+  "user_profile": {
+    "speaking_style": "A（用户）的说话风格",
+    "how_she_calls_user": ["她怎么称呼用户（各时段，verbatim 优先）"],
+    "role_in_relationship": "用户在关系中的角色",
+    "shared_topics": ["共同话题（剧场里角色们的共同记忆素材）"],
+    "evidence": "原文佐证或\"无\"",
+    "evidence_level": "verbatim|artifact|impression"
+  }
 }
 ```
 
@@ -113,3 +137,6 @@
 8. **情感解码规则（v2）**：各段 emotion_decoder 合并去重——同一 cue 同一 meaning 合并为一条；cue 相同但 meaning 冲突 → 写入 conflicts（不掩盖）。
 9. **经典语录（v2）**：classic_quotes 跨段合并（同句合并计数）；口癖与经典语录保持两类，不混入。
 10. 输出 JSON 必须合法（这是最终产物的唯一输入）。
+11. **时段化人格（v3）**：eras 按**事件/关系温度/称呼变化**划分（如「初识-热恋-异地-疏远」），**不是硬切日期**；每段至少给出 称呼/口癖/句长/情绪模式/深夜行为；核心稳定特质放 core，变化轨迹放 evolution（dimension 明确是哪个维度变了、stable=false 表示变了）。
+12. **用户侧画像（v3）**：user_profile 从 A（用户）侧消息蒸馏——用户的说话风格、她怎么称呼用户、用户在关系中的角色；这是剧场素材（角色们共同记忆里的\"你\"），不是可对话角色；无证据部分标 impression。
+13. **隐私红线**：模板与产物中的例句/称呼只允许通用表达或占位符（如\"她叫我小名\"），**不得输出真实个人信息**；第三人信息用占位（\"朋友A\"）。

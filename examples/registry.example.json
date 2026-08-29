@@ -1,0 +1,19 @@
+{
+  "format": "suhui-character-registry",
+  "version": 3,
+  "active": "__HER_SLUG__",
+  "characters": [
+    {
+      "name": "__HER_NAME__",
+      "slug": "__HER_SLUG__",
+      "path": "characters/__HER_SLUG__",
+      "desc": "__ONE_LINE_DESC__（占位符示例）",
+      "relation": "熟人",
+      "template_version": 3,
+      "eras": 0,
+      "standalone": true,
+      "registered": "2030-01-01T00:00:00",
+      "updated": "2030-01-01T00:00:00"
+    }
+  ]
+}

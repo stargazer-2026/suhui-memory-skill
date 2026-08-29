@@ -34,27 +34,27 @@ DEFAULTS = {
     "discriminator_level": 2,         # 判别器 0-2（默认 2 重）
 }
 
-# flash 版保留的核心机制（对应 §3 双版本策略「flash 保留」清单）
+# flash 版保留的核心机制（v3 按 80% 原则重新审视：核心 20% 贡献 80% 效果；
+# 裁掉世界树打分公式/竞争性干扰/多路径择优/PAD 三维动力学/冗长功能清单）
 FLASH_CORE = [
-    "memory_worldtree", "memory_competitive", "memory_3channel",
-    "persona_core", "persona_scene_rules", "persona_implicit_measure",
-    "persona_decision_weights", "persona_language_fingerprint",
-    "emotion_pad", "behavior_cadence", "behavior_break", "behavior_imperfect",
-    "behavior_shared_silence", "continuous_state", "time_sense",
-    "expression_catchphrases", "expression_evidence", "expression_knowledge_boundary",
-    "expression_correction_loop", "flow_steps", "flow_init_protocol",
-    "flow_in_session_distill", "flow_farewell", "flow_time_capsule",
-    "interview_supplement",
+    "persona_core", "persona_scene_rules", "expression_evidence",
+    "memory_3channel", "expression_catchphrases", "emotion_decoder",
+    "persona_eras", "multi_character", "theater_lite", "user_profile",
+    "continuous_state", "time_sense", "expression_correction_loop",
+    "flow_steps", "flow_init_protocol", "flow_in_session_distill",
+    "flow_farewell", "flow_time_capsule", "interview_supplement",
 ]
 
-# flash 可裁的外围增强（§3 列表）
+# flash 可裁的外围增强（v3 清单：边际机制 + 原外围增强）
 FLASH_CUT = [
-    "time_traveler", "her_life", "attribution_analysis", "shared_future",
-    "counterfactual", "time_eye", "artifacts", "memory_visualization",
-    "evocation", "rituals", "her_dreams", "impression_evolution",
-    "narrative_rebuild", "voice_identity", "sensory_memory",
-    "her_plan_timeline", "strategic_sleep", "multi_session_dynamics",
-    "shared_memory", "ideal_self", "regret_list", "self_reconciliation",
+    "memory_worldtree_scoring", "memory_competitive", "multi_path_selection",
+    "pad_3d_dynamics", "time_traveler", "her_life", "attribution_analysis",
+    "shared_future", "counterfactual", "time_eye", "artifacts",
+    "memory_visualization", "evocation", "rituals", "her_dreams",
+    "impression_evolution", "narrative_rebuild", "voice_identity",
+    "sensory_memory", "her_plan_timeline", "strategic_sleep",
+    "multi_session_dynamics", "shared_memory", "ideal_self", "regret_list",
+    "self_reconciliation",
 ]
 
 
