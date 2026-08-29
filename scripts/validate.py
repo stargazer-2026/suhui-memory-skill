@@ -32,6 +32,11 @@ PERSONA_KEYS = {
     "values": list,
     "speculative": list,
 }
+# v3 可选增强键（存在时校验类型；缺失不报错——v3 增强，可 upgrade.py 补齐）
+PERSONA_KEYS_OPTIONAL = {
+    "eras": list,
+    "core": dict,
+}
 MEMORIES_KEYS = {
     "timeline": list,
     "nodes": list,
@@ -49,29 +54,30 @@ def iter_json_files(distill_dir):
 
 
 def check_json_file(path, strict=False):
-    """返回 (ok, problems) 。"""
+    """返回 (ok, problems, warnings) 。"""
     problems = []
+    warnings = []
     with open(path, "r", encoding="utf-8") as f:
         content = f.read()
     try:
         data = json.loads(content)
     except json.JSONDecodeError as e:
         return False, ["JSON 语法错误：行 %d 列 %d（%s）"
-                       % (e.lineno, e.colno, e.msg)]
+                       % (e.lineno, e.colno, e.msg)], []
 
     if not isinstance(data, dict):
-        return False, ["顶层不是 JSON 对象"]
+        return False, ["顶层不是 JSON 对象"], []
 
     base = os.path.basename(path)
     if base.startswith("seg_"):
-        _check_segment(data, problems, strict)
+        _check_segment(data, problems, strict, warnings)
     elif base == "merged.json":
-        _check_merged(data, problems, strict)
+        _check_merged(data, problems, strict, warnings)
     elif base == "checkpoint.json":
         _check_checkpoint(data, problems, strict)
     else:
         problems.append("未知文件类型（跳过结构校验）")
-    return len(problems) == 0, problems
+    return len(problems) == 0, problems, warnings
 
 
 def _check_evidence(item, problems, where):
@@ -81,7 +87,7 @@ def _check_evidence(item, problems, where):
                         % (where, lvl))
 
 
-def _check_segment(data, problems, strict):
+def _check_segment(data, problems, strict, warnings):
     """seg_N.json：persona/memories 骨架 + 实体簇。"""
     persona = data.get("persona") or {}
     memories = data.get("memories") or {}
@@ -106,6 +112,10 @@ def _check_persona_skeleton(p, problems, strict=False):
         if key not in p:
             problems.append("persona 缺字段: %s" % key)
         elif not isinstance(p[key], typ):
+            problems.append("persona.%s 类型应为 %s" % (key, typ.__name__))
+    # v3 可选增强键：存在时校验类型（缺失不报错）
+    for key, typ in PERSONA_KEYS_OPTIONAL.items():
+        if key in p and not isinstance(p[key], typ):
             problems.append("persona.%s 类型应为 %s" % (key, typ.__name__))
     for t in p.get("core_traits") or []:
         if isinstance(t, dict):
@@ -159,7 +169,7 @@ def _check_memories_skeleton(m, problems, strict=False):
             problems.append("timeline 项缺 stage")
 
 
-def _check_merged(data, problems, strict):
+def _check_merged(data, problems, strict, warnings):
     """merged.json：build.py 的输入，结构必须完整。"""
     persona = data.get("persona") or {}
     memories = data.get("memories") or {}
@@ -178,6 +188,17 @@ def _check_merged(data, problems, strict):
             if not d.get("cue") or not d.get("meaning"):
                 problems.append("emotion_decoder 项缺 cue/meaning")
             _check_evidence(d, problems, "emotion_decoder")
+    # v3 完整性警告（P1 配套，v3.0.1）：标 v3 却缺 eras → 提示升级补齐
+    # 注意：warning 级，不阻断（exit 0）——保持"可选增强"定位
+    tv = data.get("template_version")
+    try:
+        tv_int = int(tv)
+    except (TypeError, ValueError):
+        tv_int = None
+    if tv_int is not None and tv_int >= 3 and not persona.get("eras"):
+        warnings.append(
+            "警告：产物标 v3（template_version=%s）但缺时段化人格（persona.eras）"
+            "（可能被蒸馏时省略）——建议 upgrade.py 补齐" % tv)
 
 
 def _check_checkpoint(data, problems, strict):
@@ -211,9 +232,10 @@ def main(argv=None):
         return 2
 
     total_ok, total_problems = 0, 0
+    total_warnings = 0
     print("校验目录: %s（%d 个 JSON 文件）" % (args.distill_dir, len(files)))
     for path in files:
-        ok, problems = check_json_file(path, args.strict)
+        ok, problems, warnings = check_json_file(path, args.strict)
         name = os.path.basename(path)
         if ok:
             total_ok += 1
@@ -225,10 +247,14 @@ def main(argv=None):
                 print("      - %s" % p)
             if len(problems) > 20:
                 print("      - … 另有 %d 个问题" % (len(problems) - 20))
+        if warnings:
+            total_warnings += len(warnings)
+            for w in warnings:
+                print("      ⚠ %s" % w)
 
     print("----")
-    print("结果：%d/%d 文件通过，共 %d 个问题" % (total_ok, len(files),
-                                          total_problems))
+    print("结果：%d/%d 文件通过，共 %d 个问题（另 %d 条警告）"
+          % (total_ok, len(files), total_problems, total_warnings))
     return 0 if total_problems == 0 else 1
 
 

@@ -3,7 +3,7 @@ name: suhui
 description: "记忆蒸馏平台（v3 多人物）：上传聊天记录 → 蒸馏成\"记忆还活着的世界\"——多人物注册/加载/切换、时段化人格（回到你们刚认识的时候）、用户侧画像、记忆剧场（让角色们相遇）。数据只在你本地与你自己的 LLM API 之间流动。"
 user-invocable: true
 author: stargazer-2026
-version: 3.0.0
+version: 3.0.1
 ---
 
 # 溯洄 · 记忆蒸馏平台（v3 多人物）
@@ -153,6 +153,7 @@ python3 scripts/theater.py script <A> <B> --atmosphere "氛围一句话"  # 剧�
 - 成本 = 1 次 merge 级调用（≈全量重跑的 5%）；**不重新逐段蒸馏**；corpus/stats 原样保留
 - 一行命令：`python3 scripts/upgrade.py characters/X/merged.json --stats <蒸馏目录>/stats.json`
 - 已升级产物（template_version=3）再次运行直接跳过，不重复计费
+- **防漏网守卫（v3.0.1）**：新蒸馏的 merged.json 若 merge 阶段省略 v3 字段（eras/user_profile），distill.py 自动降级标 template_version=2 并打印警告——upgrade.py 会因 <3 正常增量补齐（先 validate.py 查警告，再一行命令救回，无需重跑蒸馏）
 - 注册表对旧产物标注"可升级"，show 命令可查
 
 ## 隐私红线

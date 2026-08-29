@@ -83,7 +83,7 @@ def test_platform_frontmatter_compat():
     assert re.search(r"^description: ", fm, re.M)
     # 增量 metadata 不破坏解析：author/version 以平铺 key 追加
     assert "author: stargazer-2026" in fm
-    assert "version: 3.0.0" in fm
+    assert "version: 3.0.1" in fm
 
 
 def test_platform_intent_mapping_present():

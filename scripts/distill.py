@@ -783,9 +783,23 @@ def main(argv=None):
         print("合并蒸馏中（merge.md）...")
         merged = with_retry(call_json, base, key, model,
                             [{"role": "user", "content": prompt}])
+        # P1 完整性守卫（v3.0.1）：LLM 可能省略 v3 字段（eras/user_profile）。
+        # 若仍标 template_version=3，upgrade.py 会因 >=3 跳过，字段永久缺失；
+        # 缺任一则降级标 v2，之后运行 upgrade.py 可增量补齐（这正是降级的目的）。
+        _p = merged.get("persona") or {}
+        has_eras = bool(_p.get("eras"))
+        has_profile = bool(merged.get("user_profile"))
+        if has_eras and has_profile:
+            template_version = 3
+        else:
+            template_version = 2
+            sys.stderr.write(
+                "⚠ 警告：merge 未返回完整 v3 字段（eras=%s user_profile=%s），"
+                "产物标注 template_version=2——可运行 upgrade.py 增量补齐"
+                "时段化人格/用户侧画像\n" % (has_eras, has_profile))
         merged.update({
             "version": 1,
-            "template_version": 3,
+            "template_version": template_version,
             "name": args.name or merged.get("name", ""),
             "generation": "api",
             "coverage": "full" if len(segments) == 1 else "segmented",
