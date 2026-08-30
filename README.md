@@ -1,5 +1,11 @@
 # 溯洄 · 记忆蒸馏平台（suhui — memory distillation skill）
 
+![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat-square)
+![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue?style=flat-square)
+![Claude Code Skill](https://img.shields.io/badge/Claude%20Code-Skill-blue?style=flat-square)
+![Vercel Skills](https://img.shields.io/badge/Vercel%20Skills-Compatible-orange?style=flat-square)
+![Memory Distillation](https://img.shields.io/badge/Memory%20Distillation-skill-purple?style=flat-square)
+
 > 把一段聊天记录蒸馏成一个"记忆还活着的世界"。
 > 不是聊天机器人（那是"你问它答"），是"你回去"——打开它，像走进一间屋子，屋里有人正在生活。
 > **v3 起是多人物平台**：蒸馏 N 个人物，注册表管理，记忆剧场让她们相遇。
