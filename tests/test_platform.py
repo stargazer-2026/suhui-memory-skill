@@ -83,7 +83,7 @@ def test_platform_frontmatter_compat():
     assert re.search(r"^description: ", fm, re.M)
     # 增量 metadata 不破坏解析：author/version 以平铺 key 追加
     assert "author: stargazer-2026" in fm
-    assert "version: 3.0.1" in fm
+    assert "version: 3.0.2" in fm
 
 
 def test_platform_intent_mapping_present():
@@ -111,6 +111,32 @@ def test_platform_multi_character_sections():
     assert "characters/" in text and "registry.json" in text
     assert "增量升级" in text and "upgrade.py" in text
     assert "时段化人格" in text and "user_profile" in text
+
+
+def test_platform_run_rule3_tool_retrieval():
+    """运行规则 3（再取记忆）必须指向 storage.py query 工具调用 + 降级路径
+    （v3.0.2：对话层接通记忆库检索，不靠 prompt 记忆）。"""
+    text = open(PLATFORM_SKILL, encoding="utf-8").read()
+    assert "再取记忆" in text
+    assert "storage.py query" in text
+    assert "--topk 5" in text
+    # 三处降级：库未建 / shell 不可用 / 查询失败
+    assert "记忆库未建，已降级" in text
+    assert "静默降级" in text
+    assert "不报错、不打断" in text
+    # 调用 shell 工具（跨场景通用，不特化运行时）
+    assert "shell 工具" in text
+
+
+def test_platform_flow_step45_build_library():
+    """首次引导流程 Step 4.5：建记忆库（init/import），对话层检索才能生效。"""
+    text = open(PLATFORM_SKILL, encoding="utf-8").read()
+    assert "Step 4.5" in text
+    assert "storage.py init" in text
+    assert "storage.py import" in text
+    assert "entity_clusters.json" in text
+    # 建库失败不阻塞：对话降级为 prompt 记忆
+    assert "降级" in text
 
 
 def test_theater_fictional_markers():

@@ -3,7 +3,7 @@ name: suhui
 description: "记忆蒸馏平台（v3 多人物）：上传聊天记录 → 蒸馏成\"记忆还活着的世界\"——多人物注册/加载/切换、时段化人格（回到你们刚认识的时候）、用户侧画像、记忆剧场（让角色们相遇）。数据只在你本地与你自己的 LLM API 之间流动。"
 user-invocable: true
 author: stargazer-2026
-version: 3.0.1
+version: 3.0.2
 ---
 
 # 溯洄 · 记忆蒸馏平台（v3 多人物）
@@ -67,6 +67,12 @@ version: 3.0.1
 - **Step 2 基础信息**（三个问题，每个可单独跳过）：Q1 昵称/代号；Q2 一句话 4 件事（在一起多久/怎么认识的/分手多久/她做什么的）；Q3 性格画像——记录不足时自动进入访谈补充（以她身份+记忆模糊方式提问：「我们是怎么认识的来着？我记得不太清了，你告诉我？」）
 - **Step 3 蒸馏（核心）**：会话内完成（无需任何密钥）——分批读文件→按模板逐批蒸馏（进度：当前段数/总段数）→合并；**断点续传**（progress.json，重载先读，已完成的段不重蒸）；<100 条提示"记录偏少，蒸馏可能不够像，建议补充材料"；脚本路径（distill.py）为可选
 - **Step 4 产物预览**：memories/persona 摘要（各 5-8 行）+ 抽查对照（证据链）；问"确认生成还是调整"
+- **Step 4.5 建记忆库（可选但推荐）**：把蒸馏产物建入 sqlite 记忆库，对话时即可检索。运行：
+  ```
+  python3 scripts/storage.py init <人物库数据目录>
+  python3 scripts/storage.py import <人物库数据目录> <messages.json> <entity_clusters.json>
+  ```
+  （LanceDB/向量档超时不可用时自动降级 sqlite——BM25+世界树+实体标签足够；建库失败提示但不阻塞，对话降级为 prompt 记忆）
 - **Step 5 像度验收**：①客观指标报告（口癖分布/句长/预测命中）②混听测试（可选：「10 条她的原话+10 条生成的，你来分」——结果只给你自己看）
 - **Step 6 初始化协议**：七项可选项（「都默认」一键跳过）
 - **Step 7 注册人物包**：产物写入 `characters/<slug>/`，写入注册表（名字/一句话描述/与用户关系——决定剧场第一句话的温度），设为当前人物。单人物产物自动注册为默认人物（v1/v2 兼容）
@@ -80,7 +86,13 @@ version: 3.0.1
 
 1. 先判断：当前人物会不会回这条消息？什么心情回？（她的生活状态机：可能正忙/深夜/压力期；情绪+精力状态——由她的状态决定，不是每问必答）
 2. 内心推演（生成前）：①她此刻状态 ②她怎么理解这句话 ③她在乎什么 ④她想怎么回 ⑤克制还是直说——推演完再输出
-3. 再取记忆：检索最相关的她的原话作锚点，贴着原话生成
+3. 再取记忆（必须调用工具，不是靠 prompt 记忆）：
+   - 调用可用 shell 工具（Claude Code Bash / DSh shell / RikkaHub workspace_shell / 任意环境）运行：
+     `python3 scripts/storage.py query <人物库数据目录> "<用户当前消息>" --topk 5`
+   - 读取 Top-5 结果（含 ts/sender/text/entities/score）作原文锚点，贴着原话生成；检索只查本地库，不外发
+   - 库未建（storage.py 无 memory.sqlite3）→ 降级：直接读 memories.md 原文（明确提示"记忆库未建，已降级"）
+   - shell 工具不可用 → 静默降级：继续用 prompt 记忆（不报错、不打断）
+   - 查询失败（路径错/脚本异常）→ 静默降级：继续用 prompt 记忆（不报错、不打断，质量略降但不崩）
 4. 输出：保持**当前时段**的表达风格（口癖/称呼/节奏/emoji/分段/延迟）；允许欲言又止、偶尔不回
 5. Layer 0（核心人格）任何情况下不得违背；时段只改表达层，不改底色
 6. 生成后自检"这句像不像她"，不像则重写
@@ -143,6 +155,7 @@ python3 scripts/registry.py register <目录>/characters/<slug> \
 python3 scripts/registry.py list / switch <名> / export <名> a.zip / import a.zip
 python3 scripts/upgrade.py <旧产物>/merged.json --stats <旧产物>/stats.json \
     --out <旧产物>/merged.json                          # v2 → v3 增量升级（≈全量 5%）
+python3 scripts/storage.py query <人物库数据目录> "<查询>" --topk 5   # 对话层记忆检索（三通道混合）
 python3 scripts/theater.py script <A> <B> --atmosphere "氛围一句话"  # 剧本骨架
 ./install.sh <人物包目录>                                  # 单人物独立安装（v1/v2 兼容）
 ```
